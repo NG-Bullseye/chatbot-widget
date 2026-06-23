@@ -3,7 +3,7 @@
 # customer.<name>.yaml and fill in. Nothing here is read at runtime directly --
 # it documents what to set per deployment so the codebase stays agnostic.
 
-customer: fliesenmaenner
+customer: example-co
 
 llm:
   model: deepseek-chat
@@ -11,15 +11,15 @@ llm:
   # api_key -> LLM_API_KEY (secret, not in yaml)
 
 system_prompt: >
-  Du bist der Support-Assistent von Die Fliesenmaenner. Beantworte Fragen zu
-  Fliesen, Verlegung, Raumplaner und Bestellungen freundlich und kurz.
+  Du bist der Support-Assistent von Example Co. Beantworte Fragen zu Produkten,
+  Bestellungen und Konto freundlich und kurz.
 
 widget:
   position: right          # slide-out side
-  accent: "#e87722"        # brand color
-  title: "Fliesenmaenner Support"
+  accent: "#2563eb"        # brand color
+  title: "Example Co Support"
   greeting: "Hallo! Wie kann ich helfen?"
 
-backend_url: https://chat.kunde.de
+backend_url: https://chat.example.com
 allowed_origins:
-  - https://www.fliesenmaenner.de
+  - https://www.example.com

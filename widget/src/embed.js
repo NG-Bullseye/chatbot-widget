@@ -66,6 +66,9 @@
       .foot { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee; }
       .foot input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
       .foot button { background: ${cfg.accent}; color: #fff; border: none; border-radius: 8px; padding: 0 16px; cursor: pointer; }
+      .fb { align-self: flex-start; display: flex; gap: 6px; margin: -4px 0 4px; }
+      .fb button { background: none; border: none; cursor: pointer; font-size: 14px; opacity: .55; padding: 0; }
+      .fb button:hover { opacity: 1; }
     </style>
     <button class="launcher" aria-label="Chat oeffnen">&#128172;</button>
     <div class="panel" role="dialog" aria-label="${cfg.title}">
@@ -90,6 +93,27 @@
     msgs.appendChild(el);
     msgs.scrollTop = msgs.scrollHeight;
     return el;
+  }
+
+  // Thumbs up/down under a bot answer; sends a Langfuse score for that turn.
+  function addFeedback(traceId) {
+    const bar = document.createElement("div");
+    bar.className = "fb";
+    for (const [icon, score] of [["\u{1F44D}", 1], ["\u{1F44E}", -1]]) {
+      const b = document.createElement("button");
+      b.textContent = icon;
+      b.onclick = () => {
+        fetch(cfg.api + "/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trace_id: traceId, score }),
+        });
+        bar.remove();
+      };
+      bar.appendChild(b);
+    }
+    msgs.appendChild(bar);
+    msgs.scrollTop = msgs.scrollHeight;
   }
 
   root.querySelector(".launcher").onclick = () => {
@@ -129,6 +153,8 @@
           if (evt.type === "token") {
             botEl.textContent += evt.content;
             msgs.scrollTop = msgs.scrollHeight;
+          } else if (evt.type === "done") {
+            if (evt.trace_id) addFeedback(evt.trace_id);
           } else if (evt.type === "error") {
             botEl.textContent += "\n[Fehler: " + evt.message + "]";
           }

@@ -1,7 +1,7 @@
 import json
 
 from apps.agent.graph import get_graph
-from apps.agent.observability import get_callbacks
+from apps.agent.observability import score_feedback, start_trace
 from asgiref.sync import sync_to_async
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -58,7 +58,8 @@ async def chat(request):
 
     conversation, history = await _load_history(session_id)
     inputs = {"messages": [*history, HumanMessage(content=user_text)]}
-    config = {"callbacks": get_callbacks(session_id=session_id)}
+    trace_id, callbacks = start_trace(session_id, user_text)
+    config = {"callbacks": callbacks}
 
     async def event_stream():
         full = []
@@ -73,7 +74,8 @@ async def chat(request):
                         yield _sse({"type": "token", "content": token})
             answer = "".join(full)
             await _persist(conversation, user_text, answer)
-            yield _sse({"type": "done"})
+            # trace_id lets the widget send feedback for this exact turn.
+            yield _sse({"type": "done", "trace_id": trace_id})
         except Exception as exc:  # surface errors to the widget instead of hanging
             yield _sse({"type": "error", "message": str(exc)})
 
@@ -86,24 +88,13 @@ async def chat(request):
 @csrf_exempt
 @require_POST
 async def feedback(request):
-    """Forward a thumbs up/down to Langfuse as a session score."""
+    """Forward a thumbs up/down to Langfuse as a score on the turn's trace."""
     try:
         payload = json.loads(request.body)
-        session_id = payload["session_id"]
+        trace_id = payload["trace_id"]
         score = int(payload["score"])  # 1 or -1
     except (KeyError, ValueError):
-        return JsonResponse({"error": "session_id and score required"}, status=400)
+        return JsonResponse({"error": "trace_id and score required"}, status=400)
 
-    import os
-
-    if os.environ.get("LANGFUSE_PUBLIC_KEY"):
-        from langfuse import Langfuse
-
-        lf = Langfuse()
-        await sync_to_async(lf.score)(
-            name="user_feedback",
-            value=score,
-            comment=payload.get("comment", ""),
-            session_id=session_id,
-        )
+    score_feedback(trace_id, score, payload.get("comment", ""))
     return JsonResponse({"ok": True})
