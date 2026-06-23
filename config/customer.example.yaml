@@ -1,0 +1,25 @@
+# Per-customer config reference. Values map to environment variables
+# (see backend/.env.example) and widget data-* attributes. Copy to
+# customer.<name>.yaml and fill in. Nothing here is read at runtime directly --
+# it documents what to set per deployment so the codebase stays agnostic.
+
+customer: fliesenmaenner
+
+llm:
+  model: deepseek-chat
+  base_url: https://api.deepseek.com/v1
+  # api_key -> LLM_API_KEY (secret, not in yaml)
+
+system_prompt: >
+  Du bist der Support-Assistent von Die Fliesenmaenner. Beantworte Fragen zu
+  Fliesen, Verlegung, Raumplaner und Bestellungen freundlich und kurz.
+
+widget:
+  position: right          # slide-out side
+  accent: "#e87722"        # brand color
+  title: "Fliesenmaenner Support"
+  greeting: "Hallo! Wie kann ich helfen?"
+
+backend_url: https://chat.kunde.de
+allowed_origins:
+  - https://www.fliesenmaenner.de
