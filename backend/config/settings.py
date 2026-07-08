@@ -84,3 +84,11 @@ CORS_ALLOWED_ORIGINS = [
     if o.strip()
 ]
 CORS_ALLOW_CREDENTIALS = False
+
+# DSGVO-Speicherbegrenzung (Art. 5 Abs. 1 lit. e): Chat-Verlaeufe werden nicht
+# unbegrenzt aufbewahrt. Das Management-Command `purge_conversations` loescht
+# Conversations, die laenger als diese Frist nicht mehr aktualisiert wurden
+# (Messages haengen per CASCADE dran). Per Cron taeglich ausfuehren.
+CONVERSATION_RETENTION_DAYS = int(
+    os.environ.get("CONVERSATION_RETENTION_DAYS", "90")
+)

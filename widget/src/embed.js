@@ -40,13 +40,24 @@
     logo: script.getAttribute("data-logo") || "",
   };
 
-  const sessionId =
-    localStorage.getItem("chatbot_session") ||
-    (() => {
-      const id = "s_" + Math.random().toString(36).slice(2) + Date.now();
-      localStorage.setItem("chatbot_session", id);
-      return id;
-    })();
+  // Session-ID wird bewusst NICHT beim Script-Load gesetzt. Ein Zugriff auf
+  // localStorage vor der ersten aktiven Nutzung waere nach Paragraf 25 TDDDG
+  // nicht "unbedingt erforderlich" (der Nutzer hat den Chat ja noch nicht
+  // angefordert). Erst beim ersten Absenden legen wir sie an -- dann ist sie
+  // Teil des angeforderten Dienstes (Verlauf ueber Reload halten) und braucht
+  // keinen Consent-Banner-Eintrag.
+  let sessionId = null;
+  function getSessionId() {
+    if (sessionId) return sessionId;
+    sessionId =
+      localStorage.getItem("chatbot_session") ||
+      (() => {
+        const id = "s_" + Math.random().toString(36).slice(2) + Date.now();
+        localStorage.setItem("chatbot_session", id);
+        return id;
+      })();
+    return sessionId;
+  }
 
   const host = document.createElement("div");
   host.id = "chatbot-widget";
@@ -179,7 +190,7 @@
       const res = await fetch(cfg.api + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, message: text }),
+        body: JSON.stringify({ session_id: getSessionId(), message: text }),
       });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
