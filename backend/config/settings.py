@@ -10,9 +10,32 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
-DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
+# DEBUG defaults to OFF. A forgotten env var in production must not turn on
+# Django's error pages -- those render the whole environment (LLM_API_KEY,
+# DATABASE_URL, Langfuse keys) into the browser on any 500.
+DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
+
+if DEBUG:
+    SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
+    ALLOWED_HOSTS = ["*"]
+else:
+    # No defaults in production: the shipped key is public (it is in git), so
+    # falling back to it would let anyone forge sessions and CSRF tokens.
+    SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+    ALLOWED_HOSTS = [
+        h.strip() for h in os.environ["DJANGO_ALLOWED_HOSTS"].split(",") if h.strip()
+    ]
+
+# Railway terminates TLS at its proxy and forwards plain HTTP. Without this
+# Django considers the request insecure, which breaks CSRF and secure cookies.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if o.strip()
+]
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -30,6 +53,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Serves collected static files (widget embed.js) without a separate web
+    # server. Django itself does not serve static files when DEBUG=false.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -70,6 +96,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
+}
 
 LANGUAGE_CODE = "de-de"
 TIME_ZONE = "Europe/Berlin"
